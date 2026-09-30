@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POLARIS – Polar Observation, Logistics, Archive & Research Information System | MoES · NCPOR</title>
+  <meta name="description" content="POLARIS: India's Tri-Polar Science Gateway | MoES & NCPOR | Team Phantom Coderx | SIH26063" />
+  <meta name="author" content="Phantom Coderx | Team ID: 134551 | SIH26063" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- React & Babel -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- Lucide Icons (via IIFE build) -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #030712; color: #E2E8F0; overflow-x: hidden; }
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #030712; } ::-webkit-scrollbar-thumb { background: #00F5FF44; border-radius: 3px; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    #three-canvas { display: block; width: 100%; height: 100%; }
+    .paku-bubble { animation: bubblePop 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+    @keyframes bubblePop { from { opacity:0; transform: scale(0.7) translateY(10px); } to { opacity:1; transform: scale(1) translateY(0); } }
+    @keyframes auraPulse { 0%,100%{opacity:0.08} 50%{opacity:0.18} }
+    .aurora-1 { animation: auraPulse 6s ease-in-out infinite; }
+    .aurora-2 { animation: auraPulse 8s ease-in-out infinite 2s; }
+    .aurora-3 { animation: auraPulse 10s ease-in-out infinite 4s; }
+    .spin { animation: spin 4s linear infinite; }
+    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+    .pulse { animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    .bounce { animation: bounce 1s ease infinite; }
+    @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    .tour-glow { box-shadow: 0 0 0 3px #00F5FF55, 0 0 20px #00F5FF33; }
+  </style>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { polar: '#00F5FF', ice: '#38BDF8', emerald2: '#10B981' },
+          fontFamily: { mono: ['JetBrains Mono', 'monospace'] }
+        }
+      }
+    };
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+    /* ====================================================
+       DATA CONSTANTS
+    ==================================================== */
+    const CONTINENTAL_ZONES = [
+      { id:'antarctica', title:'Antarctica (South Pole)', sub:'Permanent Bases: Maitri (1989) & Bharati (2012)', badge:'Coldest Desert on Earth', coords:"69°24'S, 76°11'E & 70°46'S, 11°44'E", temp:'-24.5°C', recordTemp:'-89.2°C (Vostok Record)', winds:'Up to 327 km/h Katabatic Storms', highlight:'Holds 70% of planetary freshwater ice and 90% of Earth\'s total glacial volume.', facts:['Ice sheet reaches up to 4.8 km in thickness, depressing bedrock below sea level.','Undergoes 6 months of continuous Polar Night in winter, followed by 6 months of Polar Day.','Primary research hub for southern ocean atmospheric teleconnections with the Indian Monsoon.'], accent:'#00F5FF' },
+      { id:'arctic', title:'Arctic (North Pole)', sub:'Base: Himadri, Ny-Ålesund, Svalbard (Norway)', badge:'Frozen Ocean Surrounded by Land', coords:"78°55'N, 11°56'E", temp:'-8.6°C', recordTemp:'-67.8°C (Verkhoyansk)', winds:'Kongsfjorden Katabatic Gusts (70 km/h)', highlight:'Rapid Arctic Amplification warming 4x faster than the global mean.', facts:['24-Hour continuous Midnight Sun during Arctic Summer (April to August).','Long-term IndARC mooring array anchored 192m deep in Kongsfjorden measuring water column flux.','Bioprospecting extremophiles and psychrotolerant lipases for green industrial biotechnology.'], accent:'#38BDF8' },
+      { id:'himalayas', title:'The Third Pole (Himalayas)', sub:'High-Altitude Station: Himansh, Spiti Valley, H.P.', badge:'Water Tower of Asia', coords:"32°24'N, 77°37'E (Alt: 4,080m)", temp:'-14.0°C', recordTemp:'-45.0°C (Drass Winter)', winds:'Jet Stream Orographic Turbulence', highlight:'Over 15,000 glaciers feeding 10 major Asian rivers sustaining 1.5+ billion people.', facts:['Himansh base conducts automated mass-balance monitoring on the Sutri Dhaka & Batal glaciers.','Critical sentinel for Glacial Lake Outburst Floods (GLOF) and black carbon aerosol deposition.','Provides the physical link connecting South Pole ice dynamics with South Asian water security.'], accent:'#10B981' },
+      { id:'southernocean', title:'Southern Ocean Belt', sub:'Research Vessel: Sagar Nidhi & Antarctic Supply Ships', badge:'Circumpolar Climate Engine', coords:'40°S to 65°S Circumpolar Belt', temp:'-1.8°C (Seawater)', recordTemp:'Freezing Point of Saline Water', winds:'Furious 50s & Roaring 40s Westerlies', highlight:'Antarctic Circumpolar Current (ACC) moves 130–140 million cubic meters per second.', facts:['Antarctic Krill (Euphausia superba) biomass exceeds 400 million tonnes as the keystone species.','Primary oceanic sink absorbing 40% of all human-induced industrial carbon dioxide.','Generates Antarctic Bottom Water (AABW), oxygenating the ocean abyss across the globe.'], accent:'#818CF8' }
+    ];
+
+    const STATIONS_DATA = [
+      { id:'bharati', name:'Bharati Station', location:'Larsemann Hills, East Antarctica', coordinates:"69°24'S, 76°11'E", temp:-24.5, wind:46, pressure:988.2, status:'Polar Night · KU-Band Link', statusTag:'ONLINE', bgBadge:'Antarctica', color:'cyan', desc:'Constructed using 134 modular prefabricated containers on stilts to minimize snow drifting. Operates continuous ISRO ground segment receivers.', commander:'Dr. K. S. Rathore (NCPOR)', crew:'24 Winter Scientists', missions:['High-rate GNSS Ionospheric Scintillation','Sub-ice Bathymetry and Acoustic Mapping','ISRO Earth Observation (Oceansat / Cartosat)'] },
+      { id:'maitri', name:'Maitri Station', location:'Schirmacher Oasis, Queen Maud Land', coordinates:"70°46'S, 11°44'E", temp:-18.2, wind:36, pressure:994.0, status:'44th IAE Expedition Active', statusTag:'DRILLING RUN', bgBadge:'Antarctica', color:'emerald', desc:'In continuous service since 1989 next to freshwater Lake Priyadarshini. Hub for deep firn ice core drilling, paleoclimatology, and geomagnetism studies.', commander:'Dr. Rajeshwar Sharma (NCPOR / GSI)', crew:'32 Active Researchers', missions:['Deep Bedrock Ice Core Extraction (500m target)','Lake Sediment Microbiome Sequencing','Tri-Axial Fluxgate Geomagnetic Array'] },
+      { id:'himadri', name:'Himadri Station', location:'Ny-Ålesund, Spitsbergen, Svalbard', coordinates:"78°55'N, 11°56'E", temp:-8.6, wind:20, pressure:1014.2, status:'Marine Biology & Fjord Arrays', statusTag:'SUB-ARCTIC', bgBadge:'Arctic', color:'sky', desc:'India\'s dedicated Arctic research headquarters in the world\'s northernmost permanent science settlement.', commander:'Dr. Ananya Mukherjee (NCPOR Arctic Wing)', crew:'14 Field Specialists', missions:['Kongsfjorden IndARC Subsurface Moorings','Aerosol LIDAR Black Carbon Measurements','Cold-Active Psychrophilic Enzyme Catalysis'] }
+    ];
+
+    const RESEARCH_PAPERS = [
+      { id:'p-1', category:'Glaciology', title:'Basal Melt Dynamics and Crevasse Propagation Along Amery Ice Shelf Margins', year:'2026', doi:'10.1016/j.polar.2026.04.019', scientist:{ name:'Dr. Rajeshwar Sharma', role:'Chief Glaciologist, NCPOR', badge:'44th IAE Leader', avatar:'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=240&q=80' }, abstract:'Ice-penetrating radar soundings along the grounding zone show warm modified Circumpolar Deep Water (mCDW) intrusion causing basal melt rates exceeding 3.8 m/year, triggering shear-band rift propagation at 240m depth.', citizen:'Indian glaciologists using radar showed that warm ocean water is carving deep channels under Antarctica\'s massive floating ice shelves, melting them from underneath at 4 meters every year.', fileSize:'4.8 MB' },
+      { id:'p-2', category:'Marine Biology', title:'Extremophile Lipase Secretion in Psychrotolerant Bacteria Isolated from Svalbard', year:'2026', doi:'10.1038/s41598-026-89110-x', scientist:{ name:'Dr. Ananya Mukherjee', role:'Head of Polar Microbiomics', badge:'Himadri PI', avatar:'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=240&q=80' }, abstract:'Novel Pseudoalteromonas phylotypes from Kongsfjorden sediment cores at -1.8°C demonstrated cold-active catalytic efficiency with no thermal denaturation at sub-zero marine ambient temperatures.', citizen:'Scientists at Himadri discovered tough Arctic bacteria that make natural stain-eating enzymes working at freezing temperatures, enabling energy-saving laundry detergents.', fileSize:'3.6 MB' },
+      { id:'p-3', category:'Atmospheric Science', title:'Polar Ionospheric Scintillation During Severe Coronal Mass Ejection Events at Bharati', year:'2025', doi:'10.1029/2025JA031940', scientist:{ name:'Dr. Vikram Sengupta', role:'Head of Space Weather, IIG / NCPOR', badge:'Bharati Winter Team', avatar:'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=240&q=80' }, abstract:'GNSS receivers at Larsemann Hills recorded peak L-band amplitude scintillation S4 indices up to 0.78 during geomagnetic storms, causing multi-frequency carrier cycle-slips across GPS and GLONASS constellations.', citizen:'When giant solar storms hit Earth\'s magnetic shield over Antarctica, Indian instruments help keep polar aircraft flights on course by monitoring GPS disruption.', fileSize:'5.2 MB' },
+      { id:'p-4', category:'Cryosphere', title:'Microplastic Atmospheric Deposition Fingerprints in Schirmacher Oasis Inland Lakes', year:'2025', doi:'10.1017/jog.2025.104', scientist:{ name:'Dr. Tenzing Norbu', role:'Cryo-Paleoclimatologist, NCPOR', badge:'3x Wintering Veteran', avatar:'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80' }, abstract:'FTIR spectroscopic quantification of surface snow and lake sediment cores near Maitri revealed polyethylene terephthalate (PET) fibers transported via circum-Antarctic tropospheric circulation.', citizen:'Even in Antarctica\'s cleanest snow around India\'s Maitri base, researchers found microscopic plastic fibers carried by high-altitude winds from other continents.', fileSize:'4.1 MB' }
+    ];
+
+    const PRELOADED_MANUSCRIPTS = [
+      { id:'sediment-2024', title:'Larsemann Hills Lake Sediment Core Geochemistry 2024', bulletin:'GOVERNMENT OF INDIA • MINISTRY OF EARTH SCIENCES\n\nNEW DELHI: An in-depth geochemical analysis of lake sediment cores collected around Bharati Station in the Larsemann Hills reveals continuous climate records dating back 12,000 years. The study, spearheaded by NCPOR researchers during the 43rd Indian Antarctic Expedition, demonstrates unprecedented sensitivity to Southern Hemisphere westerly wind variations.\n\nSpeaking on the achievement, the Mission Director highlighted that understanding polar paleoclimate teleconnections is pivotal for enhancing predictive algorithms for the Indian Summer Monsoon.', bullets:['Indian scientists examined 12,000-year-old mud layers from pristine Antarctic lakes near Bharati Station.','The ancient sediment proves that historical shifts in Antarctic polar winds altered weather patterns across the Indian Ocean.','Data will be incorporated into the MoES Climate Forecasting Matrix to improve seasonal monsoon accuracy.'], tweets:['🚨 POLAR DISCOVERY: @moesgoi & @ncpor_goa scientists decode 12,000 years of Antarctic climate memory! #AntarcticaScience #MoES #NCPOR','2/4 Led by Dr. R. Sharma, the team found shifts in Southern Ocean westerly winds changed ocean circulation, sending climate waves toward India. 🌊❄️','3/4 Our polar outposts are essential sentinels for predicting India\'s monsoons and Himalayan snowpack. 🇮🇳🏔️','4/4 Read the full report on POLARIS: polaris.ncpor.res.in/vault/larsemann-sediment #BharatAtPoles'] },
+      { id:'ozone-recovery', title:'Antarctic Ozone Recovery Trends Observed with Brewer Spectrophotometer', bulletin:'GOVERNMENT OF INDIA • MINISTRY OF EARTH SCIENCES\n\nNEW DELHI: Continuous atmospheric observations using the indigenous Brewer Spectrophotometer at Maitri Station have recorded a statistically significant 14% deceleration in Spring stratospheric ozone depletion rates over the past decade.\n\nThe findings validate global adherence to the Montreal Protocol while underscoring the crucial role of Indian polar observatories.', bullets:['Instruments at Maitri Station show the Antarctic ozone hole is healing 14% faster than recorded in previous decades.','Continuous observations confirm the worldwide ban on harmful CFCs is successfully restoring Earth\'s UV shield.','The data safeguards polar expeditions and satellite telemetry from harmful solar cosmic radiation bursts.'], tweets:['🌍 HEALING THE SKY: New data from India\'s Maitri Station confirms stratospheric ozone is recovering 14% faster! #MoES #OzoneRecovery #NCPOR','2/4 High-precision Brewer Spectrophotometers maintained by Indian scientists recorded consistent thickening of the polar ozone layer. ☀️🛡️','3/4 This monitoring from Maitri safeguards international research flights and our teams during the harsh polar winter. ❄️📡','4/4 Discover all daily total column ozone readings on POLARIS #BharatScientificLeadership'] }
+    ];
+
+    const GALLERY_ITEMS = [
+      { id:'gal-01', title:'Emperor Penguin Colony at Prydz Bay', category:'Wildlife', location:'Near Larsemann Hills, East Antarctica', gps:"69°21'S, 76°08'E", date:'14 Nov 2025', camera:'Sony Alpha 1 · FE 400mm f/2.8 GM', exif:'400mm · f/4.0 · 1/1600s · ISO 250 · -22°C', url:'https://images.unsplash.com/photo-1598439210625-5067c578f3f6?auto=format&fit=crop&w=1200&q=80', caption:'Adult Emperor penguins and chicks gathered along the edge of the fast ice overlooking the freezing waters of Prydz Bay.' },
+      { id:'gal-02', title:'Aurora Australis Illuminating Bharati Dome', category:'Atmosphere', location:'Bharati Station Observatory, Antarctica', gps:"69°24'S, 76°11'E", date:'24 Aug 2025', camera:'Nikon Z9 · 14-24mm f/2.8 S', exif:'14mm · f/2.8 · 12.0s · ISO 4000 · -31°C', url:'https://images.unsplash.com/photo-1517411032315-54ef2cb783bb?auto=format&fit=crop&w=1200&q=80', caption:'Vivid emerald and violet auroral curtains dancing over India\'s geodesic radomes during the Antarctic winter solstice.' },
+      { id:'gal-03', title:'Deep Bedrock Ice Core Extraction at Schirmacher', category:'Science Operations', location:'Maitri Drill Camp #3, Antarctica', gps:"70°46'S, 11°44'E", date:'03 Jan 2026', camera:'Canon EOS R5 · 24-70mm f/2.8L', exif:'35mm · f/5.6 · 1/400s · ISO 200 · -16°C', url:'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80', caption:'Glaciologists retrieving a 1-meter pristine ice cylinder capturing atmospheric gasses from 1,200 years in the past.' },
+      { id:'gal-04', title:'Kongsfjorden Glacier Calving Front & IndARC Mooring', category:'Arctic Marine', location:'Ny-Ålesund, Svalbard, Arctic', gps:"78°55'N, 11°56'E", date:'18 Jul 2025', camera:'Fujifilm GFX 100S · GF 32-64mm', exif:'45mm · f/8.0 · 1/500s · ISO 160 · +2°C', url:'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80', caption:'Scientific launch boat taking water column salinity casts in front of the active tidewater glacier in Svalbard.' }
+    ];
+
+    /* ====================================================
+       3D TOUR COMPONENT
+    ==================================================== */
+    const TOUR_CHECKPOINTS = [
+      { name:'Main Research Lab', pos:{ x:2, y:3, z:8 }, target:{ x:2, y:0, z:0 }, fact:'Yeh hai Bharati Station ka main research lab! Yahaan scientists atmosphere aur cryosphere data collect karte hain 24/7. 🔬' },
+      { name:'Helipad', pos:{ x:-6, y:4, z:6 }, target:{ x:-3, y:0.5, z:-2 }, fact:'Bharati ka Helipad – supply missions aur medical evacuations ke liye. Ek baar icy blizzard mein bhi helicopter yahan land kiya tha! 🚁' },
+      { name:'Living Quarters', pos:{ x:5, y:2, z:-6 }, target:{ x:0, y:1, z:0 }, fact:'Scientists ke living quarters – container modules mein heater, beds aur recreation area. -40°C ke bahar, andar +20°C! 🏠❄️' },
+      { name:'Satellite Radome', pos:{ x:-4, y:5, z:-7 }, target:{ x:-2, y:1, z:-4 }, fact:'Yeh spherical dome hai ISRO ka satellite ground station! Yahan se Oceansat aur Cartosat data receive hota hai directly. 📡🛰️' }
+    ];
+
+    const HOTSPOTS = [
+      { id:'fuel', position:{ x:1.5, y:1.8, z:0.5 }, label:'Green Fuel Cell', fact:'Yeh Bharati Station ka Green Fuel Cell module hai! Hydrogen fuel cells se 40% power generate hoti hai. Zero emissions! 🌿⚡' },
+      { id:'aerosol', position:{ x:-1.5, y:2.0, z:0.2 }, label:'Aerosol Lab', fact:'Yahan atmospheric aerosols test hote hain – black carbon aur sea salt particles jo Indian monsoon ko affect karte hain! 🌫️🔬' },
+      { id:'antenna', position:{ x:0, y:3.5, z:-1 }, label:'GNSS Array', fact:'Yeh GNSS antenna array ionospheric scintillation measure karta hai – solar storms ke waqt GPS signals ko protect karne ke liye! 📡' },
+      { id:'maitri', position:{ x:6, y:1, z:3 }, label:'Maitri Station', fact:'Yeh hai Maitri Station – 1989 se active! Schirmacher Oasis mein bana, -18°C average temperature. 32 scientists ke saath! 🇮🇳' }
+    ];
+
+    function ThreeJSTour() {
+      const mountRef = useRef(null);
+      const sceneRef = useRef(null);
+      const rendererRef = useRef(null);
+      const cameraRef = useRef(null);
+      const frameRef = useRef(null);
+      const controlsRef = useRef(null);
+      const starsRef = useRef(null);
+      const auroraRef = useRef(null);
+      const blizzardRef = useRef([]);
+      const hotspotMeshesRef = useRef([]);
+      const tourTimerRef = useRef(null);
+      const clockRef = useRef(null);
+
+      const [mode, setMode] = useState('day'); // day | night | blizzard
+      const [activeCam, setActiveCam] = useState(null);
+      const [pakuSpeech, setPakuSpeech] = useState('Namaste! Main hoon Paku 🐧 Aapka polar guide! Kisi bhi hotspot ya camera angle pe click karo aur main bataunga station ke baare mein!');
+      const [showSpeech, setShowSpeech] = useState(true);
+      const [isTourRunning, setIsTourRunning] = useState(false);
+      const [tourStep, setTourStep] = useState(0);
+      const [hoveredHotspot, setHoveredHotspot] = useState(null);
+      const [fps, setFps] = useState(60);
+
+      const speakAs = useCallback((text) => {
+        setPakuSpeech(text);
+        setShowSpeech(true);
+      }, []);
+
+      // Build Three.js scene
+      useEffect(() => {
+        if (!mountRef.current) return;
+        const THREE = window.THREE;
+        if (!THREE) { speakAs('Three.js failed to load! Please check internet connection.'); return; }
+
+        const W = mountRef.current.clientWidth || 800;
+        const H = mountRef.current.clientHeight || 500;
+
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
+        renderer.setSize(W, H);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        mountRef.current.appendChild(renderer.domElement);
+        rendererRef.current = renderer;
+
+        // Scene
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0a1628, 0.045);
+        sceneRef.current = scene;
+
+        // Camera
+        const camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 300);
+        camera.position.set(2, 4, 12);
+        camera.lookAt(0, 0, 0);
+        cameraRef.current = camera;
+
+        // Clock
+        const clock = new THREE.Clock();
+        clockRef.current = clock;
+
+        // ---- LIGHTS ----
+        const ambLight = new THREE.AmbientLight(0x223355, 0.8);
+        scene.add(ambLight);
+
+        const sunLight = new THREE.DirectionalLight(0xfff5cc, 1.4);
+        sunLight.position.set(20, 30, 15);
+        sunLight.castShadow = true;
+        sunLight.shadow.camera.far = 80;
+        sunLight.shadow.mapSize.set(1024, 1024);
+        scene.add(sunLight);
+        scene.userData.sunLight = sunLight;
+        scene.userData.ambLight = ambLight;
+
+        // ---- TERRAIN ----
+        const terrainGeo = new THREE.PlaneGeometry(60, 60, 40, 40);
+        const posAttr = terrainGeo.attributes.position;
+        for (let i = 0; i < posAttr.count; i++) {
+          const x = posAttr.getX(i), z = posAttr.getZ(i);
+          const h = Math.sin(x * 0.3) * 0.4 + Math.cos(z * 0.25) * 0.3 + Math.sin(x * 0.6 + z * 0.4) * 0.2;
+          posAttr.setY(i, h);
+        }
+        terrainGeo.computeVertexNormals();
+        const terrainMat = new THREE.MeshLambertMaterial({ color: 0xd4eeff });
+        const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+        terrain.rotation.x = -Math.PI / 2;
+        terrain.receiveShadow = true;
+        scene.add(terrain);
+
+        // Ice surface reflection layer
+        const iceGeo = new THREE.PlaneGeometry(60, 60, 1, 1);
+        const iceMat = new THREE.MeshLambertMaterial({ color: 0x88ddff, transparent: true, opacity: 0.18 });
+        const iceLayer = new THREE.Mesh(iceGeo, iceMat);
+        iceLayer.rotation.x = -Math.PI / 2;
+        iceLayer.position.y = 0.01;
+        scene.add(iceLayer);
+
+        // Snow drifts
+        for (let i = 0; i < 20; i++) {
+          const dGeo = new THREE.SphereGeometry(0.3 + Math.random() * 0.6, 6, 4);
+          const dMat = new THREE.MeshLambertMaterial({ color: 0xe8f4ff });
+          const drift = new THREE.Mesh(dGeo, dMat);
+          drift.position.set((Math.random() - 0.5) * 40, 0.1, (Math.random() - 0.5) * 40);
+          drift.scale.y = 0.3;
+          scene.add(drift);
+        }
+
+        // ---- BHARATI STATION ----
+        const bharatiGroup = new THREE.Group();
+        bharatiGroup.position.set(0, 0, 0);
+
+        // Stilts
+        const stiltMat = new THREE.MeshLambertMaterial({ color: 0x445566 });
+        const stiltGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.2, 6);
+        [[-1.2,0.6],[1.2,0.6],[-1.2,-0.6],[1.2,-0.6],[-1.2,0],[ 1.2,0]].forEach(([x,z]) => {
+          const s = new THREE.Mesh(stiltGeo, stiltMat);
+          s.position.set(x, 0.6, z);
+          bharatiGroup.add(s);
+        });
+
+        // Main body (container modules)
+        const bodyGeo = new THREE.BoxGeometry(3.5, 0.8, 1.6);
+        const bodyMat = new THREE.MeshLambertMaterial({ color: 0x1a3a5c });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.set(0, 1.6, 0);
+        body.castShadow = true;
+        bharatiGroup.add(body);
+
+        // Module lines
+        const modLineMat = new THREE.MeshLambertMaterial({ color: 0x00F5FF });
+        for (let i = -1; i <= 1; i++) {
+          const lineGeo = new THREE.BoxGeometry(0.03, 0.85, 1.65);
+          const line = new THREE.Mesh(lineGeo, modLineMat);
+          line.position.set(i * 1.1, 1.6, 0);
+          bharatiGroup.add(line);
+        }
+
+        // Upper lab module
+        const labGeo = new THREE.BoxGeometry(1.5, 0.5, 1.0);
+        const labMat = new THREE.MeshLambertMaterial({ color: 0x0f2944 });
+        const lab = new THREE.Mesh(labGeo, labMat);
+        lab.position.set(0, 2.25, 0);
+        lab.castShadow = true;
+        bharatiGroup.add(lab);
+
+        // Satellite radome (sphere)
+        const radomeGeo = new THREE.SphereGeometry(0.35, 12, 8);
+        const radomeMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        const radome = new THREE.Mesh(radomeGeo, radomeMat);
+        radome.position.set(-1.2, 2.75, 0);
+        bharatiGroup.add(radome);
+
+        // Indian flag pole
+        const poleGeo = new THREE.CylinderGeometry(0.03, 0.03, 1.5, 6);
+        const poleMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+        const pole = new THREE.Mesh(poleGeo, poleMat);
+        pole.position.set(1.5, 2.5, 0);
+        bharatiGroup.add(pole);
+
+        // Flag (orange top)
+        const flagOGeo = new THREE.BoxGeometry(0.5, 0.18, 0.02);
+        const flagOMat = new THREE.MeshLambertMaterial({ color: 0xff9933 });
+        const flagO = new THREE.Mesh(flagOGeo, flagOMat);
+        flagO.position.set(1.77, 3.08, 0);
+        bharatiGroup.add(flagO);
+
+        // Flag white
+        const flagWGeo = new THREE.BoxGeometry(0.5, 0.18, 0.02);
+        const flagWMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        const flagW = new THREE.Mesh(flagWGeo, flagWMat);
+        flagW.position.set(1.77, 2.9, 0);
+        bharatiGroup.add(flagW);
+
+        // Flag green
+        const flagGGeo = new THREE.BoxGeometry(0.5, 0.18, 0.02);
+        const flagGMat = new THREE.MeshLambertMaterial({ color: 0x138808 });
+        const flagG = new THREE.Mesh(flagGGeo, flagGMat);
+        flagG.position.set(1.77, 2.72, 0);
+        bharatiGroup.add(flagG);
+
+        // Fuel cell module (green cube)
+        const fuelGeo = new THREE.BoxGeometry(0.6, 0.5, 0.5);
+        const fuelMat = new THREE.MeshLambertMaterial({ color: 0x10B981 });
+        const fuelCell = new THREE.Mesh(fuelGeo, fuelMat);
+        fuelCell.position.set(1.5, 1.6, 0.5);
+        fuelCell.userData.hotspotId = 'fuel';
+        bharatiGroup.add(fuelCell);
+
+        // Aerosol mast
+        const mastGeo = new THREE.CylinderGeometry(0.04, 0.04, 2.0, 6);
+        const mastMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+        const mast = new THREE.Mesh(mastGeo, mastMat);
+        mast.position.set(-1.5, 2.0, 0.2);
+        mast.userData.hotspotId = 'aerosol';
+        bharatiGroup.add(mast);
+
+        // GNSS antenna
+        const antennaGeo = new THREE.CylinderGeometry(0.25, 0.1, 0.15, 8);
+        const antennaMat = new THREE.MeshLambertMaterial({ color: 0x00F5FF });
+        const antenna = new THREE.Mesh(antennaGeo, antennaMat);
+        antenna.position.set(0, 3.4, -0.6);
+        antenna.userData.hotspotId = 'antenna';
+        bharatiGroup.add(antenna);
+
+        // Window glow strips
+        const winMat = new THREE.MeshLambertMaterial({ color: 0xfff5aa, emissive: 0xffdd44, emissiveIntensity: 0.6 });
+        for (let i = -1; i <= 1; i++) {
+          const winGeo = new THREE.BoxGeometry(0.25, 0.15, 0.05);
+          const win = new THREE.Mesh(winGeo, winMat);
+          win.position.set(i * 0.9, 1.65, 0.83);
+          bharatiGroup.add(win);
+        }
+
+        scene.add(bharatiGroup);
+        scene.userData.bharatiGroup = bharatiGroup;
+
+        // ---- MAITRI STATION ----
+        const maitriGroup = new THREE.Group();
+        maitriGroup.position.set(6, 0, 3);
+
+        const mBodyGeo = new THREE.BoxGeometry(2.5, 1.0, 1.2);
+        const mBodyMat = new THREE.MeshLambertMaterial({ color: 0x8B3A3A });
+        const mBody = new THREE.Mesh(mBodyGeo, mBodyMat);
+        mBody.position.set(0, 1.0, 0);
+        mBody.castShadow = true;
+        mBody.userData.hotspotId = 'maitri';
+        maitriGroup.add(mBody);
+
+        // Maitri roof
+        const mRoofGeo = new THREE.CylinderGeometry(0, 1.5, 0.6, 4);
+        const mRoofMat = new THREE.MeshLambertMaterial({ color: 0xaa4444 });
+        const mRoof = new THREE.Mesh(mRoofGeo, mRoofMat);
+        mRoof.position.set(0, 1.8, 0);
+        maitriGroup.add(mRoof);
+
+        // Maitri flag
+        const mPoleGeo = new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6);
+        const mPole = new THREE.Mesh(mPoleGeo, poleMat);
+        mPole.position.set(1.1, 2.1, 0);
+        maitriGroup.add(mPole);
+
+        const mFlagGeo = new THREE.BoxGeometry(0.45, 0.45, 0.02);
+        const mFlagMat = new THREE.MeshLambertMaterial({ color: 0xff9933 });
+        const mFlag = new THREE.Mesh(mFlagGeo, mFlagMat);
+        mFlag.position.set(1.35, 2.45, 0);
+        maitriGroup.add(mFlag);
+
+        // MoES insignia disk
+        const insigniaGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.05, 16);
+        const insigniaMat = new THREE.MeshLambertMaterial({ color: 0x003399, emissive: 0x001166, emissiveIntensity: 0.5 });
+        const insignia = new THREE.Mesh(insigniaGeo, insigniaMat);
+        insignia.position.set(-0.5, 1.55, 0.65);
+        insignia.rotation.x = -Math.PI / 2;
+        maitriGroup.add(insignia);
+
+        scene.add(maitriGroup);
+
+        // ---- STARS ----
+        const starGeo = new THREE.BufferGeometry();
+        const starVerts = [];
+        for (let i = 0; i < 1000; i++) {
+          starVerts.push((Math.random() - 0.5) * 400, 50 + Math.random() * 100, (Math.random() - 0.5) * 400);
+        }
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.3, transparent: true, opacity: 0 });
+        const stars = new THREE.Points(starGeo, starMat);
+        scene.add(stars);
+        starsRef.current = stars;
+
+        // ---- AURORA PLANE ----
+        const auroraGeo = new THREE.PlaneGeometry(80, 30);
+        const auroraMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0, side: THREE.DoubleSide });
+        const aurora = new THREE.Mesh(auroraGeo, auroraMat);
+        aurora.position.set(0, 35, -30);
+        aurora.rotation.x = 0.3;
+        scene.add(aurora);
+        auroraRef.current = aurora;
+
+        // ---- BLIZZARD PARTICLES ----
+        const blizzGeo = new THREE.BufferGeometry();
+        const blizzVerts = [];
+        for (let i = 0; i < 800; i++) {
+          blizzVerts.push((Math.random() - 0.5) * 50, Math.random() * 20, (Math.random() - 0.5) * 50);
+        }
+        blizzGeo.setAttribute('position', new THREE.Float32BufferAttribute(blizzVerts, 3));
+        const blizzMat = new THREE.PointsMaterial({ color: 0xcceeff, size: 0.15, transparent: true, opacity: 0 });
+        const blizzard = new THREE.Points(blizzGeo, blizzMat);
+        scene.add(blizzard);
+        blizzardRef.current = [blizzard];
+
+        // ---- ORBIT CONTROLS (manual) ----
+        let isMouseDown = false, lastMX = 0, lastMY = 0;
+        let theta = 0.3, phi = 0.4, radius = 12;
+        let targetTheta = theta, targetPhi = phi, targetRadius = radius;
+        let targetLookAt = new THREE.Vector3(0, 0, 0);
+        let currentLookAt = new THREE.Vector3(0, 0, 0);
+        let isTourActiveLocal = false;
+
+        const canvas = renderer.domElement;
+
+        canvas.addEventListener('mousedown', (e) => { isMouseDown = true; lastMX = e.clientX; lastMY = e.clientY; isTourActiveLocal = false; });
+        canvas.addEventListener('mouseup', () => { isMouseDown = false; });
+        canvas.addEventListener('mousemove', (e) => {
+          if (!isMouseDown) return;
+          const dx = (e.clientX - lastMX) * 0.006;
+          const dy = (e.clientY - lastMY) * 0.004;
+          targetTheta -= dx;
+          targetPhi = Math.max(0.1, Math.min(1.4, targetPhi - dy));
+          lastMX = e.clientX; lastMY = e.clientY;
+        });
+        canvas.addEventListener('wheel', (e) => {
+          targetRadius = Math.max(4, Math.min(28, targetRadius + e.deltaY * 0.018));
+          isTourActiveLocal = false;
+          e.preventDefault();
+        }, { passive: false });
+
+        // Touch support
+        let lastTouchDist = 0;
+        canvas.addEventListener('touchstart', (e) => {
+          if (e.touches.length === 1) { isMouseDown = true; lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY; }
+          if (e.touches.length === 2) { lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
+        });
+        canvas.addEventListener('touchend', () => { isMouseDown = false; });
+        canvas.addEventListener('touchmove', (e) => {
+          if (e.touches.length === 1 && isMouseDown) {
+            const dx = (e.touches[0].clientX - lastMX) * 0.006;
+            const dy = (e.touches[0].clientY - lastMY) * 0.004;
+            targetTheta -= dx; targetPhi = Math.max(0.1, Math.min(1.4, targetPhi - dy));
+            lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
+          }
+          if (e.touches.length === 2) {
+            const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            targetRadius = Math.max(4, Math.min(28, targetRadius - (d - lastTouchDist) * 0.04));
+            lastTouchDist = d;
+          }
+          e.preventDefault();
+        }, { passive: false });
+
+        // Hotspot click
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        canvas.addEventListener('click', (e) => {
+          const rect = canvas.getBoundingClientRect();
+          mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouse, camera);
+          const objects = [];
+          scene.traverse(obj => { if (obj.isMesh && obj.userData.hotspotId) objects.push(obj); });
+          const hits = raycaster.intersectObjects(objects, true);
+          if (hits.length > 0) {
+            const hsId = hits[0].object.userData.hotspotId;
+            const hs = HOTSPOTS.find(h => h.id === hsId);
+            if (hs) {
+              setPakuSpeech('Paku: ' + hs.fact);
+              setShowSpeech(true);
+            }
+          }
+        });
+
+        controlsRef.current = { getState: () => ({ theta, phi, radius }), goTo: (cp) => {
+          isTourActiveLocal = true;
+          targetTheta = Math.atan2(cp.pos.x, cp.pos.z);
+          targetPhi = Math.asin(cp.pos.y / Math.sqrt(cp.pos.x**2 + cp.pos.y**2 + cp.pos.z**2));
+          targetRadius = Math.sqrt(cp.pos.x**2 + cp.pos.y**2 + cp.pos.z**2);
+          targetLookAt.set(cp.target.x, cp.target.y, cp.target.z);
+        }};
+
+        // ---- RENDER LOOP ----
+        let frames = 0; let lastFpsTime = performance.now();
+        const animate = () => {
+          frameRef.current = requestAnimationFrame(animate);
+          const t = clock.getElapsedTime();
+
+          // Smooth camera
+          theta += (targetTheta - theta) * 0.06;
+          phi += (targetPhi - phi) * 0.06;
+          radius += (targetRadius - radius) * 0.06;
+          currentLookAt.lerp(targetLookAt, 0.06);
+
+          camera.position.set(
+            currentLookAt.x + radius * Math.sin(theta) * Math.cos(phi),
+            currentLookAt.y + radius * Math.sin(phi),
+            currentLookAt.z + radius * Math.cos(theta) * Math.cos(phi)
+          );
+          camera.lookAt(currentLookAt);
+
+          // Flag wave
+          if (flagW) {
+            flagW.rotation.y = Math.sin(t * 2.5) * 0.15;
+            flagO.rotation.y = Math.sin(t * 2.5 + 0.2) * 0.15;
+            flagG.rotation.y = Math.sin(t * 2.5 - 0.2) * 0.15;
+          }
+
+          // Blizzard movement
+          if (blizzard) {
+            const bPos = blizzard.geometry.attributes.position;
+            for (let i = 0; i < bPos.count; i++) {
+              bPos.setY(i, bPos.getY(i) - 0.12);
+              bPos.setX(i, bPos.getX(i) + Math.sin(t + i) * 0.04);
+              if (bPos.getY(i) < -1) bPos.setY(i, 20);
+            }
+            bPos.needsUpdate = true;
+          }
+
+          // Aurora wave
+          if (auroraRef.current) {
+            auroraRef.current.material.opacity = auroraRef.current.material.opacity > 0 ?
+              0.12 + Math.sin(t * 0.5) * 0.05 : 0;
+          }
+
+          renderer.render(scene, camera);
+
+          // FPS counter
+          frames++;
+          const now = performance.now();
+          if (now - lastFpsTime > 2000) {
+            setFps(Math.round(frames * 1000 / (now - lastFpsTime)));
+            frames = 0; lastFpsTime = now;
+          }
+        };
+        animate();
+
+        // Resize handler
+        const onResize = () => {
+          if (!mountRef.current) return;
+          const w = mountRef.current.clientWidth;
+          const h = mountRef.current.clientHeight;
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h);
+        };
+        window.addEventListener('resize', onResize);
+
+        return () => {
+          window.removeEventListener('resize', onResize);
+          cancelAnimationFrame(frameRef.current);
+          if (tourTimerRef.current) clearTimeout(tourTimerRef.current);
+          renderer.dispose();
+          if (mountRef.current && renderer.domElement.parentNode === mountRef.current) {
+            mountRef.current.removeChild(renderer.domElement);
+          }
+        };
+      }, []);
+
+      // Mode switcher
+      useEffect(() => {
+        const scene = sceneRef.current;
+        if (!scene) return;
+        const sun = scene.userData.sunLight;
+        const amb = scene.userData.ambLight;
+        const stars = starsRef.current;
+        const aurora = auroraRef.current;
+        const blizz = blizzardRef.current[0];
+
+        if (mode === 'day') {
+          if (sun) { sun.color.set(0xfff5cc); sun.intensity = 1.4; }
+          if (amb) { amb.color.set(0x223355); amb.intensity = 0.8; }
+          if (stars) stars.material.opacity = 0;
+          if (aurora) aurora.material.opacity = 0;
+          if (blizz) blizz.material.opacity = 0;
+          scene.fog = new THREE.FogExp2(0x0a1628, 0.04);
+        } else if (mode === 'night') {
+          if (sun) { sun.color.set(0x1133aa); sun.intensity = 0.3; }
+          if (amb) { amb.color.set(0x000822); amb.intensity = 0.4; }
+          if (stars) stars.material.opacity = 0.9;
+          if (aurora) { aurora.material.opacity = 0.15; aurora.material.color.set(0x00ff66); }
+          if (blizz) blizz.material.opacity = 0;
+          scene.fog = new THREE.FogExp2(0x010816, 0.05);
+        } else if (mode === 'blizzard') {
+          if (sun) { sun.color.set(0x8899bb); sun.intensity = 0.5; }
+          if (amb) { amb.color.set(0x445566); amb.intensity = 1.2; }
+          if (stars) stars.material.opacity = 0;
+          if (aurora) aurora.material.opacity = 0;
+          if (blizz) blizz.material.opacity = 0.8;
+          scene.fog = new THREE.FogExp2(0x99bbcc, 0.12);
+        }
+      }, [mode]);
+
+      // Guided tour
+      const startTour = useCallback(() => {
+        if (isTourRunning) return;
+        setIsTourRunning(true);
+        setTourStep(0);
+        let step = 0;
+        const doStep = () => {
+          if (step >= TOUR_CHECKPOINTS.length) {
+            setIsTourRunning(false);
+            speakAs('Paku: Tour complete ho gaya! Mujhe bohot maza aaya! Agar koi aur question hai toh hotspot pe click karo. 🐧✨');
+            return;
+          }
+          const cp = TOUR_CHECKPOINTS[step];
+          setTourStep(step);
+          if (controlsRef.current) controlsRef.current.goTo(cp);
+          speakAs('Paku: ' + cp.fact);
+          step++;
+          tourTimerRef.current = setTimeout(doStep, 4500);
+        };
+        doStep();
+      }, [isTourRunning, speakAs]);
+
+      const gotoPreset = (idx) => {
+        const cp = TOUR_CHECKPOINTS[idx];
+        if (controlsRef.current) controlsRef.current.goTo(cp);
+        setActiveCam(cp.name);
+        speakAs('Paku: ' + cp.fact);
+      };
+
+      return (
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="p-5 rounded-2xl bg-[#0B1528]/90 border border-[#00F5FF]/40 shadow-xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00F5FF]/10 border border-[#00F5FF]/30 text-[#00F5FF] text-xs font-mono font-bold mb-2">
+                  <span className="pulse">●</span> POLARIS 3D STATION EXPLORER — WebGL LIVE
+                </div>
+                <h2 className="text-2xl font-black text-white">POLARIS 3D Station Explorer & Walkthrough</h2>
+                <p className="text-sm text-slate-400 font-mono mt-1">Interactive 3D tour of Bharati & Maitri Antarctic Stations · Guided by Paku 🐧 · Optimised for 64–128 kbps</p>
+              </div>
+              <div className="flex items-center gap-2 font-mono text-xs">
+                <span className="px-2 py-1 rounded bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/30">WebGL Active</span>
+                <span className="px-2 py-1 rounded bg-[#030712] text-slate-400 border border-slate-700">{fps} FPS</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3D Viewport + Controls */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+
+            {/* Main Viewport */}
+            <div className="lg:col-span-3 relative rounded-2xl overflow-hidden border border-[#38BDF8]/30 shadow-2xl" style={{height:'520px', background:'#010d1a'}}>
+              <div ref={mountRef} style={{width:'100%', height:'100%'}} />
+
+              {/* Paku HUD */}
+              <div className="absolute bottom-4 left-4 flex items-end gap-3 pointer-events-none">
+                {/* Penguin SVG */}
+                <div className="relative">
+                  <svg viewBox="0 0 100 120" className="w-20 h-24 drop-shadow-2xl" style={{filter:'drop-shadow(0 0 8px #00F5FF66)'}}>
+                    <ellipse cx="50" cy="112" rx="28" ry="6" fill="#000" opacity="0.5" />
+                    <ellipse cx="37" cy="108" rx="8" ry="4" fill="#F59E0B" />
+                    <ellipse cx="63" cy="108" rx="8" ry="4" fill="#F59E0B" />
+                    <ellipse cx="50" cy="66" rx="28" ry="40" fill="#070F1E" stroke="#00F5FF" strokeWidth="1.5" />
+                    <ellipse cx="50" cy="72" rx="18" ry="30" fill="url(#pg)" />
+                    <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#FDE047"/><stop offset="60%" stopColor="#FFF"/></linearGradient></defs>
+                    <circle cx="50" cy="32" r="18" fill="#070F1E" />
+                    <path d="M36,26 Q30,32 36,38" stroke="#FBBF24" strokeWidth="4" fill="none" strokeLinecap="round" />
+                    <path d="M64,26 Q70,32 64,38" stroke="#FBBF24" strokeWidth="4" fill="none" strokeLinecap="round" />
+                    <circle cx="44" cy="30" r="3" fill="#fff" /><circle cx="45" cy="30" r="1.5" fill="#030712" />
+                    <circle cx="56" cy="30" r="3" fill="#fff" /><circle cx="55" cy="30" r="1.5" fill="#030712" />
+                    <polygon points="50,35 45,42 55,42" fill="#F59E0B" />
+                    <path d="M25,54 Q14,68 26,80" stroke="#070F1E" strokeWidth="7" strokeLinecap="round" fill="none" />
+                    <g style={{animation:'flipper 1.5s ease-in-out infinite alternate'}}>
+                      <path d="M75,54 Q92,62 95,76" stroke="#070F1E" strokeWidth="8" strokeLinecap="round" fill="none" />
+                      <circle cx="96" cy="78" r="7" fill="#00F5FF" />
+                      <circle cx="96" cy="78" r="4" fill="#030712" />
+                    </g>
+                  </svg>
+                  <style>{`@keyframes flipper{from{transform:rotate(-12deg)}to{transform:rotate(8deg)}}`}</style>
+                </div>
+                {/* Speech Bubble */}
+                {showSpeech && (
+                  <div className="paku-bubble pointer-events-auto max-w-xs md:max-w-sm mb-8">
+                    <div className="relative px-4 py-3 rounded-2xl rounded-bl-none bg-white text-[#030712] text-xs font-mono font-bold shadow-2xl leading-relaxed">
+                      {pakuSpeech}
+                      <button onClick={() => setShowSpeech(false)} className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-slate-700 text-white flex items-center justify-center text-[10px] hover:bg-slate-500">✕</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Mode Badges */}
+              <div className="absolute top-3 right-3 flex items-center gap-2">
+                {['day','night','blizzard'].map(m => (
+                  <button key={m} onClick={() => { setMode(m); speakAs(m==='day'?'Paku: Clear polar day! Sun yahan 6 months tak set nahi hota! ☀️❄️':m==='night'?'Paku: Polar night! Aurora australis dekho – ye charged particles aur magnetic field ka jugalbandi hai! 🌌':"Paku: Blizzard mode! Winds 300+ km/h tak jaati hain. Station ke andar tight raho! 🌨️💨"); }}
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold border transition-all ${ mode===m ? 'bg-[#00F5FF] text-[#030712] border-[#00F5FF] shadow-lg' : 'bg-[#030712]/80 text-slate-400 border-slate-700 hover:text-white' }`}>
+                    {m==='day'?'☀️ Day':m==='night'?'🌌 Night':'🌨️ Blizzard'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Hotspot labels overlay */}
+              <div className="absolute top-3 left-3 space-y-1 pointer-events-none">
+                <div className="px-2 py-1 rounded bg-[#00F5FF]/20 border border-[#00F5FF]/40 text-[10px] font-mono text-[#00F5FF]">🎯 Click hotspot objects to hear Paku!</div>
+                <div className="px-2 py-1 rounded bg-[#030712]/80 border border-slate-700 text-[10px] font-mono text-slate-400">🖱️ Drag · Scroll to zoom · Touch supported</div>
+              </div>
+
+              {/* Tour Step Indicator */}
+              {isTourRunning && (
+                <div className="absolute bottom-4 right-4 px-3 py-2 rounded-xl bg-[#00F5FF] text-[#030712] text-xs font-mono font-black">
+                  📍 Tour: {TOUR_CHECKPOINTS[tourStep]?.name} ({tourStep+1}/{TOUR_CHECKPOINTS.length})
+                </div>
+              )}
+            </div>
+
+            {/* Right Controls Panel */}
+            <div className="lg:col-span-1 space-y-4">
+              {/* Guided Tour */}
+              <div className="p-4 rounded-2xl bg-[#0B1528]/90 border border-[#00F5FF]/40 space-y-3 tour-glow">
+                <div className="text-xs font-mono text-[#00F5FF] font-bold uppercase tracking-wider">🐧 Guided Tour</div>
+                <p className="text-[11px] text-slate-400 font-mono">Let Paku take you through all key checkpoints with live narration!</p>
+                <button
+                  onClick={startTour}
+                  disabled={isTourRunning}
+                  className={`w-full py-3 px-4 rounded-xl text-xs font-mono font-black transition-all flex items-center justify-center gap-2 ${ isTourRunning ? 'bg-[#00F5FF]/30 text-[#00F5FF] cursor-not-allowed animate-pulse' : 'bg-gradient-to-r from-[#00F5FF] to-[#38BDF8] text-[#030712] hover:opacity-90 shadow-lg shadow-[#00F5FF]/20' }`}>
+                  {isTourRunning ? `🐧 Touring... (${tourStep+1}/${TOUR_CHECKPOINTS.length})` : '▶ Start Guided Tour'}
+                </button>
+              </div>
+
+              {/* Preset Camera Angles */}
+              <div className="p-4 rounded-2xl bg-[#0B1528]/90 border border-[#38BDF8]/30 space-y-2">
+                <div className="text-xs font-mono text-[#38BDF8] font-bold uppercase tracking-wider mb-2">📷 Camera Angles</div>
+                {TOUR_CHECKPOINTS.map((cp, idx) => (
+                  <button key={idx} onClick={() => gotoPreset(idx)}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-mono border transition-all ${ activeCam===cp.name ? 'bg-[#00F5FF]/20 border-[#00F5FF] text-white font-bold' : 'bg-[#030712] border-slate-700 text-slate-400 hover:text-white hover:border-slate-500' }`}>
+                    📍 {cp.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Hotspot Legend */}
+              <div className="p-4 rounded-2xl bg-[#0B1528]/90 border border-[#38BDF8]/30 space-y-2">
+                <div className="text-xs font-mono text-[#38BDF8] font-bold uppercase tracking-wider mb-2">🎯 Station Hotspots</div>
+                {HOTSPOTS.map(hs => (
+                  <div key={hs.id} onClick={() => speakAs('Paku: ' + hs.fact)}
+                    className="px-3 py-2 rounded-xl bg-[#030712] border border-slate-700 text-xs font-mono text-slate-400 hover:text-white hover:border-[#00F5FF] cursor-pointer transition-all">
+                    🏗️ {hs.label}
+                  </div>
+                ))}
+              </div>
+
+              {/* Mode Guide */}
+              <div className="p-4 rounded-2xl bg-[#0B1528]/90 border border-[#38BDF8]/30 space-y-1 text-[11px] font-mono text-slate-400">
+                <div className="text-xs text-[#00F5FF] font-bold mb-2">🌍 Scene Modes</div>
+                <div>☀️ Day – Clear polar daylight</div>
+                <div>🌌 Night – Aurora Australis</div>
+                <div>🌨️ Blizzard – Katabatic storm</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ====================================================
+       DASHBOARD VIEWS
+    ==================================================== */
+    function DashboardTelemetryView({ stations, onSelectStation }) {
+      return (
+        <div className="space-y-8">
+          <div className="p-6 sm:p-8 rounded-3xl bg-[#0B1528]/85 border border-[#38BDF8]/30 shadow-2xl">
+            <div className="max-w-3xl space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00F5FF]/10 border border-[#00F5FF]/30 text-[#00F5FF] text-xs font-mono font-bold">
+                <span className="pulse">●</span> INDIAN POLAR STATIONS TELEMETRY MATRIX
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">Real-Time Antarctic & Arctic Station Telemetry</h2>
+              <p className="text-sm text-slate-300 leading-relaxed">Continuous orbital and ground instrumentation stream from Bharati and Maitri in East Antarctica, and Himadri in the Svalbard Arctic.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {stations.map(station => (
+              <div key={station.id} onClick={() => onSelectStation(station)}
+                className="p-6 rounded-2xl bg-[#0B1528]/80 hover:bg-[#0B1528] border border-[#38BDF8]/25 hover:border-[#00F5FF] cursor-pointer transition-all duration-300 hover:-translate-y-1.5 shadow-xl group space-y-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#030712] text-[#00F5FF] border border-[#00F5FF]/30 font-bold uppercase">{station.bgBadge}</span>
+                    <h3 className="text-xl font-black text-white mt-1 group-hover:text-[#00F5FF] transition-colors">{station.name}</h3>
+                    <p className="text-xs font-mono text-[#38BDF8]">{station.location}</p>
+                    <p className="text-[11px] font-mono text-slate-500">{station.coordinates}</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[#030712] border border-slate-800 text-[#00F5FF]"><span className="text-lg">📡</span></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl bg-[#030712]/70 border border-slate-800">
+                    <span className="text-[10px] uppercase font-mono text-slate-500 block">Temperature</span>
+                    <div className="text-2xl font-bold font-mono text-[#00F5FF]">{station.temp}<span className="text-sm font-normal text-slate-400">°C</span></div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-[#030712]/70 border border-slate-800">
+                    <span className="text-[10px] uppercase font-mono text-slate-500 block">Wind</span>
+                    <div className="text-2xl font-bold font-mono text-white">{station.wind}<span className="text-sm font-normal text-slate-400"> km/h</span></div>
+                  </div>
+                </div>
+                <div className="space-y-1.5 text-xs font-mono border-t border-slate-800 pt-3">
+                  <div className="flex justify-between"><span className="text-slate-500">Status:</span><span className="text-[#10B981] font-bold">{station.statusTag}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Pressure:</span><span className="text-white font-bold">{station.pressure} hPa</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Crew:</span><span className="text-[#00F5FF]">{station.crew}</span></div>
+                </div>
+                <div className="pt-2 flex items-center justify-between text-xs font-mono text-[#00F5FF] group-hover:underline">
+                  <span>Inspect Deep Telemetry</span><span>→</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function DashboardVaultView({ papers, showToast }) {
+      const [activeFilter, setActiveFilter] = useState('All');
+      const [searchQuery, setSearchQuery] = useState('');
+      const [citizenViews, setCitizenViews] = useState({});
+      const toggleCardMode = (id) => setCitizenViews(prev => ({ ...prev, [id]: !prev[id] }));
+      const filteredPapers = useMemo(() => papers.filter(p => {
+        const matchCat = activeFilter === 'All' || p.category === activeFilter;
+        const q = searchQuery.toLowerCase();
+        return matchCat && (p.title.toLowerCase().includes(q) || p.scientist.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+      }), [papers, activeFilter, searchQuery]);
+      return (
+        <div className="space-y-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#38BDF8]/20 pb-4">
+            <div>
+              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded text-[10px] font-mono font-medium bg-[#00F5FF]/10 text-[#00F5FF] mb-1">OPEN ACCESS DIGITAL REPOSITORY · NCPOR</div>
+              <h2 className="text-3xl font-black text-white tracking-tight">The Research Expedition Vault</h2>
+              <p className="text-xs sm:text-sm text-slate-400">Peer-reviewed scientific publications from Indian Arctic and Antarctic campaigns.</p>
+            </div>
+            <div className="relative w-full sm:w-80">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search papers, authors..." className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B1528] border border-[#38BDF8]/30 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#00F5FF]" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-800 font-mono text-xs">
+            {['All','Glaciology','Atmospheric Science','Marine Biology','Cryosphere'].map(cat => (
+              <button key={cat} onClick={() => setActiveFilter(cat)} className={`px-4 py-2 rounded-xl transition-all whitespace-nowrap ${ activeFilter===cat ? 'bg-[#00F5FF] text-[#030712] font-black' : 'text-slate-300 bg-[#0B1528] hover:bg-[#070F1E]' }`}>{cat}</button>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {filteredPapers.map(paper => {
+              const isCitizen = !!citizenViews[paper.id];
+              return (
+                <div key={paper.id} className="p-6 rounded-2xl bg-[#0B1528]/80 border border-[#38BDF8]/25 flex flex-col justify-between space-y-5 shadow-xl hover:border-[#00F5FF] transition-all">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <img src={paper.scientist.avatar} alt={paper.scientist.name} className="w-12 h-12 rounded-full object-cover border-2 border-[#00F5FF]" />
+                        <div>
+                          <span className="text-sm font-bold text-white">{paper.scientist.name}</span>
+                          <p className="text-[11px] font-mono text-[#38BDF8]">{paper.scientist.role}</p>
+                          <p className="text-[10px] font-mono text-slate-500">{paper.scientist.badge}</p>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded bg-[#00F5FF]/10 text-[#00F5FF] text-[10px] font-mono border border-[#00F5FF]/30 uppercase font-bold">{paper.category}</span>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white leading-snug">{paper.title}</h3>
+                      <div className="flex items-center gap-3 mt-1 text-[11px] font-mono text-slate-500">
+                        <span>Year: {paper.year}</span><span>•</span><span className="text-[#00F5FF]">DOI: {paper.doi}</span>
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-[#030712]/70 border border-slate-800 space-y-2.5">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span className="text-[11px] font-mono uppercase text-[#00F5FF] font-bold">✨ {isCitizen ? 'Citizen Summary' : 'Scientific Abstract'}</span>
+                        <button onClick={() => toggleCardMode(paper.id)} className="px-2.5 py-1 rounded bg-[#0B1528] hover:bg-[#070F1E] text-[10px] font-mono text-[#00F5FF] border border-[#00F5FF]/40">{isCitizen ? 'Scientific View' : 'Citizen View'}</button>
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed">{isCitizen ? paper.citizen : paper.abstract}</p>
+                    </div>
+                  </div>
+                  <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2 font-mono text-xs">
+                    <button onClick={() => showToast(`Downloading: ${paper.doi}...`)} className="px-4 py-2 rounded-xl bg-[#00F5FF]/20 hover:bg-[#00F5FF]/30 text-[#00F5FF] border border-[#00F5FF]/50 font-bold flex items-center gap-1.5">⬇ Download PDF</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function DashboardScientistsView({ showToast }) {
+      const scientists = [
+        { name:'Dr. Rajeshwar Sharma', role:'Chief Glaciologist & Mission Director', inst:'NCPOR, Goa', expeditions:'4 Winter-Overs at Bharati & Maitri · 7 Summer Cruises', specialty:'Ice-shelf Radar Sounding, Cryo-fracture Modeling', citations:'2,840', avatar:'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80' },
+        { name:'Dr. Ananya Mukherjee', role:'Senior Scientist & Arctic Specialist', inst:'NCPOR Arctic Wing', expeditions:'3 Svalbard Expeditions at Himadri Base', specialty:'Polar Marine Microbiomics & Cold-Active Enzymes', citations:'1,960', avatar:'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80' },
+        { name:'Dr. Vikram Sengupta', role:'Head of Upper Atmospheric & Space Weather', inst:'IIG / NCPOR', expeditions:'2 Winter-Overs at Bharati Dome', specialty:'Ionospheric Scintillation, Auroral Electrojet', citations:'3,200', avatar:'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80' },
+        { name:'Dr. Tenzing Norbu', role:'Chief Geophysicist & Ice Core Paleoclimatologist', inst:'NCPOR Cryo-Core Facility', expeditions:'3 Indian Antarctic Expeditions (Maitri)', specialty:'Firn Core Isotope Fractionation', citations:'1,780', avatar:'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80' }
+      ];
+      return (
+        <div className="space-y-6">
+          <div className="border-b border-[#38BDF8]/20 pb-4">
+            <h2 className="text-3xl font-black text-white tracking-tight">Indian Polar Scientist Directory</h2>
+            <p className="text-xs sm:text-sm text-slate-400">Principal investigators and winter-over veterans at Bharati, Maitri, and Himadri.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {scientists.map((sci, idx) => (
+              <div key={idx} className="p-6 rounded-2xl bg-[#0B1528]/85 border border-[#38BDF8]/25 flex items-start gap-4 shadow-xl">
+                <img src={sci.avatar} alt={sci.name} className="w-16 h-16 rounded-2xl object-cover border-2 border-[#00F5FF]" />
+                <div className="space-y-2 flex-1">
+                  <div>
+                    <h3 className="text-base font-bold text-white">{sci.name}</h3>
+                    <p className="text-xs font-mono text-[#00F5FF]">{sci.role}</p>
+                    <p className="text-[10px] font-mono text-slate-500">{sci.inst}</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[#030712] border border-slate-800 text-[11px] font-mono text-slate-300 space-y-1">
+                    <div>Record: <strong className="text-white">{sci.expeditions}</strong></div>
+                    <div>Domain: <span className="text-[#38BDF8]">{sci.specialty}</span></div>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 text-xs font-mono">
+                    <span className="text-emerald-400 font-bold">{sci.citations} Citations</span>
+                    <button onClick={() => showToast(`Dataset access requested from ${sci.name}.`)} className="text-[#00F5FF] hover:underline">Request Datasets →</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function DashboardAiStudioView({ presets, showToast }) {
+      const [selectedPresetId, setSelectedPresetId] = useState(presets[0].id);
+      const [activeOutputTab, setActiveOutputTab] = useState('bulletin');
+      const [isSynthesizing, setIsSynthesizing] = useState(false);
+      const activePreset = presets.find(p => p.id === selectedPresetId) || presets[0];
+      const handleSynthesize = () => {
+        setIsSynthesizing(true);
+        setTimeout(() => { setIsSynthesizing(false); showToast('MoES Communique Synthesized Successfully!'); }, 1600);
+      };
+      const copyText = (t) => { navigator.clipboard.writeText(t); showToast('Copied to clipboard!'); };
+      return (
+        <div className="space-y-6">
+          <div className="border-b border-[#38BDF8]/20 pb-4">
+            <h2 className="text-3xl font-black text-white tracking-tight flex items-center gap-2">✨ AI Polar Dissemination & PR Studio</h2>
+            <p className="text-xs sm:text-sm text-slate-400">Auto-generate official MoES bulletins and social media threads from polar science manuscripts.</p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-5 p-6 rounded-2xl bg-[#0B1528]/85 border border-[#38BDF8]/25 space-y-4">
+              <h3 className="text-sm font-bold text-white uppercase font-mono">Select Polar Paper</h3>
+              <div className="space-y-2">
+                {presets.map(p => (
+                  <button key={p.id} onClick={() => setSelectedPresetId(p.id)} className={`w-full p-3 rounded-xl text-left text-xs font-mono border transition-all ${ selectedPresetId===p.id ? 'bg-[#00F5FF]/15 border-[#00F5FF] text-white font-bold' : 'bg-[#030712] border-slate-800 text-slate-300 hover:bg-[#070F1E]' }`}>❄️ {p.title}</button>
+                ))}
+              </div>
+              <button onClick={handleSynthesize} disabled={isSynthesizing} className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00F5FF] to-[#38BDF8] text-[#030712] font-black font-mono text-xs uppercase tracking-wider shadow-lg hover:opacity-90 flex items-center justify-center gap-2">
+                ✨ {isSynthesizing ? 'Synthesizing...' : 'Synthesize Press Release'}
+              </button>
+            </div>
+            <div className="lg:col-span-7 p-6 rounded-2xl bg-[#0B1528]/85 border border-[#38BDF8]/25 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2 font-mono text-xs">
+                  {['bulletin','bullets','twitter'].map(tab => (
+                    <button key={tab} onClick={() => setActiveOutputTab(tab)} className={`px-3 py-1.5 rounded-lg uppercase ${ activeOutputTab===tab ? 'bg-[#00F5FF] text-[#030712] font-bold' : 'text-slate-300 bg-[#030712]' }`}>{tab==='bulletin'?'MoES Bulletin':tab==='bullets'?'3 Bullets':'X Thread'}</button>
+                  ))}
+                </div>
+                <button onClick={() => copyText(activeOutputTab==='bulletin'?activePreset.bulletin:activeOutputTab==='bullets'?activePreset.bullets.join('\n'):activePreset.tweets.join('\n\n'))} className="text-xs font-mono text-[#00F5FF] hover:underline">📋 Copy</button>
+              </div>
+              {isSynthesizing ? (
+                <div className="py-16 text-center space-y-3">
+                  <div className="w-8 h-8 border-2 border-[#00F5FF] border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-xs font-mono text-[#00F5FF]">Formatting PIB communique...</p>
+                </div>
+              ) : (
+                <div className="font-mono text-xs">
+                  {activeOutputTab==='bulletin' && <pre className="whitespace-pre-wrap font-sans text-xs text-slate-300 leading-relaxed p-4 rounded-xl bg-[#030712]">{activePreset.bulletin}</pre>}
+                  {activeOutputTab==='bullets' && <ul className="space-y-2 p-4 rounded-xl bg-[#030712]">{activePreset.bullets.map((b,i) => <li key={i} className="flex items-start gap-2 text-slate-300"><span className="text-[#10B981]">✓</span>{b}</li>)}</ul>}
+                  {activeOutputTab==='twitter' && <div className="space-y-2">{activePreset.tweets.map((tw,i) => <div key={i} className="p-3 rounded-xl bg-[#030712] border border-slate-800 text-slate-300"><span className="text-[#00F5FF] block mb-1">Tweet {i+1}</span><p>{tw}</p></div>)}</div>}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function DashboardGalleryView({ items, showToast }) {
+      return (
+        <div className="space-y-6">
+          <div className="border-b border-[#38BDF8]/20 pb-4">
+            <h2 className="text-3xl font-black text-white tracking-tight">Digital Asset Gallery (DAM)</h2>
+            <p className="text-xs sm:text-sm text-slate-400">Authenticated high-latitude imagery from Indian research expeditions.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {items.map(item => (
+              <div key={item.id} className="p-5 rounded-2xl bg-[#0B1528]/85 border border-[#38BDF8]/25 space-y-4 shadow-xl">
+                <div className="relative h-60 rounded-xl overflow-hidden bg-slate-900">
+                  <img src={item.url} alt={item.title} className="w-full h-full object-cover" />
+                  <div className="absolute top-3 left-3 px-2 py-0.5 rounded bg-[#030712]/90 text-[#00F5FF] font-mono text-[10px] border border-[#00F5FF]/30">{item.category}</div>
+                </div>
+                <div><h3 className="text-base font-bold text-white">{item.title}</h3><p className="text-xs text-slate-400 mt-1">{item.caption}</p></div>
+                <div className="p-3 rounded-xl bg-[#030712] border border-slate-800 text-[11px] font-mono text-slate-300 space-y-1">
+                  <div>GPS: <span className="text-[#00F5FF]">{item.gps}</span></div>
+                  <div>Camera: <span className="text-white">{item.camera}</span></div>
+                  <div>EXIF: <span className="text-slate-400">{item.exif}</span></div>
+                </div>
+                <button onClick={() => showToast(`MoES Watermark stamp downloading: ${item.title}`)} className="w-full py-2.5 px-4 rounded-xl bg-[#00F5FF]/20 hover:bg-[#00F5FF]/30 text-[#00F5FF] border border-[#00F5FF]/40 font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5">🏅 Download with MoES Stamp</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function StationModal({ station, onClose, showToast }) {
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="max-w-2xl w-full p-6 sm:p-8 rounded-3xl bg-[#0B1528] border border-[#00F5FF]/40 space-y-6 shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-800 pb-3">
+              <div><h3 className="text-2xl font-black text-white">{station.name}</h3><p className="text-xs font-mono text-[#00F5FF]">{station.location} ({station.coordinates})</p></div>
+              <button onClick={onClose} className="p-1.5 rounded-xl bg-[#030712] text-slate-400 hover:text-white text-xl">✕</button>
+            </div>
+            <div className="grid grid-cols-3 gap-3 font-mono text-xs">
+              {[['Temp',`${station.temp}°C`,'text-[#00F5FF]'],['Wind',`${station.wind} km/h`,'text-white'],['Pressure',`${station.pressure} hPa`,'text-white']].map(([label,val,cls]) => (
+                <div key={label} className="p-3 rounded-xl bg-[#030712] border border-slate-800">
+                  <span className="text-slate-500 text-[10px] block">{label}</span>
+                  <span className={`text-lg font-bold ${cls}`}>{val}</span>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2 text-xs font-mono">
+              <h4 className="text-[#38BDF8] uppercase font-bold">Active Science Missions</h4>
+              <ul className="space-y-1.5">{station.missions.map((m, idx) => <li key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-[#030712] text-slate-300"><span className="text-[#10B981]">✓</span>{m}</li>)}</ul>
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button onClick={() => showToast(`NetCDF telemetry export for ${station.name} initiated.`)} className="px-4 py-2 rounded-xl bg-[#00F5FF] text-[#030712] font-black font-mono text-xs">Export NetCDF Telemetry</button>
+              <button onClick={onClose} className="px-4 py-2 rounded-xl bg-[#030712] text-slate-300 font-mono text-xs">Close</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ====================================================
+       CANVAS SNOWFALL
+    ==================================================== */
+    function SnowCanvas({ active }) {
+      const ref = useRef(null);
+      useEffect(() => {
+        const canvas = ref.current; if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        let afid;
+        const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+        resize(); window.addEventListener('resize', resize);
+        const flakes = Array.from({length:80}, () => ({ x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight, r: Math.random()*2+0.5, d: Math.random()*1.5+0.5, o: Math.random()*0.7+0.3, a: Math.random()*Math.PI*2 }));
+        const draw = () => {
+          ctx.clearRect(0,0,canvas.width,canvas.height);
+          if (active) flakes.forEach(f => { ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,Math.PI*2); ctx.fillStyle=`rgba(226,232,240,${f.o})`; ctx.fill(); f.a+=0.015; f.y+=Math.cos(f.a)+f.d; f.x+=Math.sin(f.a)*0.8+0.3; if(f.y>canvas.height){f.y=-6;f.x=Math.random()*canvas.width;} if(f.x>canvas.width)f.x=0; if(f.x<0)f.x=canvas.width; });
+          afid = requestAnimationFrame(draw);
+        };
+        draw();
+        return () => { window.removeEventListener('resize',resize); cancelAnimationFrame(afid); };
+      }, [active]);
+      return <canvas ref={ref} className="fixed inset-0 pointer-events-none z-10" />;
+    }
+
+    /* ====================================================
+       MAIN APP
+    ==================================================== */
+    function App() {
+      const [screen, setScreen] = useState('entrance');
+      const [activeTab, setActiveTab] = useState('telemetry');
+      const [snowfall, setSnowfall] = useState(true);
+      const [isTransitioning, setIsTransitioning] = useState(false);
+      const [syncProgress, setSyncProgress] = useState(0);
+      const [selectedRegion, setSelectedRegion] = useState('antarctica');
+      const [stationModal, setStationModal] = useState(null);
+      const [toast, setToast] = useState({ visible: false, message: '' });
+      const [satMode, setSatMode] = useState(false);
+
+      const showToast = (msg) => {
+        setToast({ visible: true, message: msg });
+        setTimeout(() => setToast({ visible: false, message: '' }), 3500);
+      };
+
+      const startTransition = () => {
+        setIsTransitioning(true); setSyncProgress(10);
+        let p = 10;
+        const iv = setInterval(() => {
+          p += Math.floor(Math.random()*18)+12;
+          if (p >= 100) { p=100; setSyncProgress(100); clearInterval(iv); setTimeout(() => { setIsTransitioning(false); setScreen('dashboard'); showToast('POLARIS Portal Online — Welcome to Bharati & Maitri Research Matrix'); }, 700); }
+          else setSyncProgress(p);
+        }, 260);
+      };
+
+      useEffect(() => {
+        const h = (e) => { if (e.key==='Enter' && screen==='entrance' && !isTransitioning) startTransition(); };
+        window.addEventListener('keydown', h);
+        return () => window.removeEventListener('keydown', h);
+      }, [screen, isTransitioning]);
+
+      const activeRegion = CONTINENTAL_ZONES.find(z => z.id === selectedRegion) || CONTINENTAL_ZONES[0];
+
+      const TABS = [
+        { id:'telemetry', label:'1. Station Telemetry' },
+        { id:'vault', label:'2. Research Vault' },
+        { id:'scientists', label:'3. Scientists' },
+        { id:'ai-studio', label:'4. AI PR Studio' },
+        { id:'gallery', label:'5. Asset DAM' },
+        { id:'3d-tour', label:'6. 3D Station Tour' }
+      ];
+
+      return (
+        <div className="min-h-screen bg-[#030712] text-slate-200 relative overflow-x-hidden selection:bg-[#00F5FF] selection:text-[#030712]">
+
+          {/* Aurora Background */}
+          <div className="fixed inset-0 pointer-events-none z-0 bg-[#030712] overflow-hidden">
+            <div className="aurora-1 absolute -top-40 -left-32 w-[650px] h-[650px] bg-[#00F5FF]/10 rounded-full blur-[160px]" />
+            <div className="aurora-2 absolute top-1/3 -right-32 w-[600px] h-[600px] bg-[#38BDF8]/10 rounded-full blur-[180px]" />
+            <div className="aurora-3 absolute -bottom-40 left-1/4 w-[750px] h-[750px] bg-[#0A2540]/30 rounded-full blur-[200px]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#030712]/40 via-transparent to-[#030712]" />
+          </div>
+
+          <SnowCanvas active={snowfall} />
+
+          {/* Satellite Mode Banner */}
+          {satMode && (
+            <div className="sticky top-0 z-50 bg-[#00F5FF] text-[#030712] px-4 py-1.5 text-xs font-mono font-bold flex items-center justify-between">
+              <span>🛰️ SATELLITE LINK ACTIVE (64 kbps — Optimised Mode)</span>
+              <button onClick={() => setSatMode(false)} className="underline">Restore Broadband</button>
+            </div>
+          )}
+
+          {/* ==================== ENTRANCE SCREEN ==================== */}
+          {screen === 'entrance' && (
+            <div className="relative z-20 min-h-screen flex flex-col justify-between p-4 sm:p-6 lg:p-8">
+
+              {/* Header */}
+              <header className="max-w-7xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-4 py-3 px-6 rounded-2xl bg-[#0B1528]/75 backdrop-blur-xl border border-[#38BDF8]/25 shadow-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00F5FF] via-[#38BDF8] to-[#10B981] p-[2px] shadow-lg shadow-[#00F5FF]/20">
+                    <div className="w-full h-full bg-[#030712] rounded-[10px] flex items-center justify-center text-xl">❄️</div>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-base font-black tracking-wider text-white">POLARIS</span>
+                      <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-[#00F5FF]/15 text-[#00F5FF] border border-[#00F5FF]/30 font-bold">MoES · NCPOR</span>
+                      <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-[#10B981]/15 text-[#10B981] border border-[#10B981]/30 font-bold">SIH26063</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-mono">Phantom Coderx | Team 134551 · Govt of India</p>
+                  </div>
+                </div>
+
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#030712]/80 border border-[#38BDF8]/20 text-xs font-mono">
+                  <span className="w-2 h-2 rounded-full bg-[#10B981] animate-ping" />
+                  <span className="text-white">Station Feeds:</span>
+                  <span className="text-[#00F5FF] font-bold">BHARATI · MAITRI · HIMADRI</span>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <button onClick={() => setSnowfall(!snowfall)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all flex items-center gap-1.5 border ${ snowfall ? 'bg-[#00F5FF]/15 text-[#00F5FF] border-[#00F5FF]/40' : 'bg-[#0B1528] text-slate-500 border-slate-700' }`}>
+                    ❄️ Snowfall: {snowfall ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+              </header>
+
+              {/* Hero */}
+              <main className="max-w-6xl mx-auto w-full my-auto py-10 space-y-10 text-center">
+                <div className="space-y-4 max-w-4xl mx-auto">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#00F5FF]/10 border border-[#00F5FF]/30 text-[#00F5FF] text-xs font-mono font-semibold tracking-wider">
+                    <span className="pulse">📡</span> BHARAT'S TRI-POLAR SCIENCE PORTAL · POLARIS
+                  </div>
+                  <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight leading-none uppercase">
+                    Enter The Frozen <br />
+                    <span className="bg-gradient-to-r from-white via-[#00F5FF] to-[#38BDF8] bg-clip-text text-transparent">Frontiers of Antarctica</span>
+                  </h1>
+                  <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-3xl mx-auto">
+                    <strong className="text-white">POLARIS</strong> — Polar Observation, Logistics, Archive & Research Information System. Gateway to Bharat's Tri-Polar Scientific Expeditions across the <strong>South Pole</strong>, <strong>North Pole</strong>, and the <strong>Himalayan Third Pole</strong>.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-mono">
+                    <span className="px-3 py-1.5 rounded-full bg-[#00F5FF]/10 border border-[#00F5FF]/30 text-[#00F5FF]">🏛️ Ministry of Earth Sciences</span>
+                    <span className="px-3 py-1.5 rounded-full bg-[#10B981]/10 border border-[#10B981]/30 text-[#10B981]">🔬 NCPOR, Goa</span>
+                    <span className="px-3 py-1.5 rounded-full bg-[#38BDF8]/10 border border-[#38BDF8]/30 text-[#38BDF8]">👨‍💻 Team Phantom Coderx | ID: 134551</span>
+                    <span className="px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-slate-400">SIH Project #26063</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center gap-3">
+                  <button onClick={startTransition}
+                    className="group relative px-8 sm:px-12 py-4 rounded-2xl bg-gradient-to-r from-[#00F5FF] via-[#38BDF8] to-[#0284C7] text-[#030712] font-black font-mono text-sm sm:text-base uppercase tracking-wider shadow-2xl shadow-[#00F5FF]/30 hover:scale-105 transition-all duration-300 flex items-center gap-3 border border-white/40">
+                    <span className="text-xl">🐧</span>
+                    <span>ENTER POLAR EXPEDITION (Press ↵)</span>
+                    <span className="group-hover:translate-x-1.5 transition-transform">→</span>
+                  </button>
+                  <span className="text-[11px] font-mono text-slate-500">
+                    Tip: Press <kbd className="px-1.5 py-0.5 rounded bg-[#0B1528] border border-slate-700 text-[#00F5FF]">Enter ↵</kbd> to launch
+                  </span>
+                </div>
+
+                {/* Zone Selector */}
+                <div className="space-y-4 text-left">
+                  <div className="flex items-center justify-between border-b border-[#38BDF8]/20 pb-2">
+                    <span className="text-xs font-mono uppercase tracking-wider text-[#00F5FF] font-bold">🧭 Select Tri-Polar Frontier:</span>
+                    <span className="text-[11px] font-mono text-slate-500 hidden sm:inline">NCPOR Geospatial Dossier</span>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {CONTINENTAL_ZONES.map(zone => {
+                      const isSelected = zone.id === selectedRegion;
+                      return (
+                        <div key={zone.id} onClick={() => setSelectedRegion(zone.id)}
+                          className={`p-4 rounded-xl cursor-pointer transition-all duration-300 border ${ isSelected ? 'bg-[#0B1528]/95 border-[#00F5FF] shadow-lg shadow-[#00F5FF]/20 -translate-y-1' : 'bg-[#0B1528]/60 hover:bg-[#0B1528]/85 border-[#38BDF8]/20' }`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#030712] text-[#00F5FF] border border-[#00F5FF]/30">{zone.badge}</span>
+                            {isSelected && <span className="w-2 h-2 rounded-full bg-[#00F5FF] animate-ping" />}
+                          </div>
+                          <h4 className="text-sm font-bold text-white leading-snug">{zone.title}</h4>
+                          <p className="text-[11px] text-slate-500 font-mono mt-1 truncate">{zone.sub}</p>
+                          <div className="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between text-xs font-mono">
+                            <span className="text-[#38BDF8] font-bold">{zone.temp}</span>
+                            <span className="text-[10px] text-slate-500">Inspect →</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="p-6 rounded-2xl bg-[#0B1528]/85 backdrop-blur-xl border border-[#38BDF8]/30 shadow-2xl space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                      <div>
+                        <h3 className="text-xl font-black text-white flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#00F5FF]" />{activeRegion.title}</h3>
+                        <p className="text-xs font-mono text-[#00F5FF] mt-0.5">{activeRegion.coords} • {activeRegion.sub}</p>
+                      </div>
+                      <div className="flex items-center gap-3 font-mono text-xs">
+                        <div className="px-3 py-1.5 rounded-lg bg-[#030712] border border-slate-800"><span className="text-slate-400 text-[10px] block">Coldest Record:</span><strong className="text-[#38BDF8]">{activeRegion.recordTemp}</strong></div>
+                        <div className="px-3 py-1.5 rounded-lg bg-[#030712] border border-slate-800"><span className="text-slate-400 text-[10px] block">Winds:</span><strong className="text-white">{activeRegion.winds}</strong></div>
+                      </div>
+                    </div>
+                    <p className="text-sm text-white font-medium leading-relaxed bg-[#030712]/50 p-3 rounded-xl border border-[#38BDF8]/20">⚡ <strong>Earth System Metric:</strong> {activeRegion.highlight}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {activeRegion.facts.map((fact, idx) => (
+                        <div key={idx} className="p-3 rounded-xl bg-[#030712]/40 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                          <span className="text-[#00F5FF] font-mono font-bold mr-1.5">[{idx+1}]</span>{fact}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </main>
+
+              <footer className="max-w-7xl mx-auto w-full pt-4 border-t border-[#38BDF8]/20 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-mono text-slate-500">
+                <span>© 2026 Ministry of Earth Sciences (MoES) · NCPOR Headland Sada, Vasco-da-Gama, Goa · <strong className="text-[#00F5FF]">POLARIS</strong> by Phantom Coderx (ID: 134551) · SIH26063</span>
+                <span className="text-[#00F5FF]">Encrypted Ku-Band Uplink · GSAT-11 Terminal #4</span>
+              </footer>
+            </div>
+          )}
+
+          {/* ==================== TRANSITION MODAL ==================== */}
+          {isTransitioning && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#030712]/90 backdrop-blur-2xl">
+              <div className="max-w-md w-full p-8 rounded-3xl bg-[#0B1528]/95 border-2 border-[#00F5FF] shadow-2xl shadow-[#00F5FF]/30 text-center space-y-6 relative overflow-hidden">
+                <div className="absolute -top-20 -left-20 w-48 h-48 bg-[#00F5FF]/20 rounded-full blur-3xl" />
+                <div className="absolute -bottom-20 -right-20 w-48 h-48 bg-[#38BDF8]/20 rounded-full blur-3xl" />
+                <div className="relative inline-block px-4 py-3 rounded-2xl bg-[#00F5FF] text-[#030712] font-black font-mono text-sm shadow-xl bounce">
+                  "Paku says: POLARIS mein aapka swagat hai! Chalo station explore karte hain! ❄️🐧"
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-[#00F5FF] rotate-45" />
+                </div>
+                <div className="relative w-44 h-52 mx-auto flex items-center justify-center">
+                  <svg viewBox="0 0 200 240" className="w-full h-full drop-shadow-2xl">
+                    <ellipse cx="100" cy="225" rx="55" ry="12" fill="#000" opacity="0.6" />
+                    <ellipse cx="78" cy="218" rx="16" ry="7" fill="#F59E0B" />
+                    <ellipse cx="122" cy="218" rx="16" ry="7" fill="#F59E0B" />
+                    <ellipse cx="100" cy="135" rx="54" ry="78" fill="#070F1E" stroke="#00F5FF" strokeWidth="2.5" />
+                    <defs><linearGradient id="eg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#FDE047"/><stop offset="25%" stopColor="#FEF08A"/><stop offset="100%" stopColor="#FFFFFF"/></linearGradient></defs>
+                    <ellipse cx="100" cy="144" rx="36" ry="60" fill="url(#eg)" />
+                    <circle cx="100" cy="65" r="32" fill="#070F1E" />
+                    <path d="M72,55 Q65,65 72,75" stroke="#FBBF24" strokeWidth="7" fill="none" strokeLinecap="round" />
+                    <path d="M128,55 Q135,65 128,75" stroke="#FBBF24" strokeWidth="7" fill="none" strokeLinecap="round" />
+                    <circle cx="90" cy="62" r="4.5" fill="#fff" /><circle cx="91" cy="62" r="2.5" fill="#030712" />
+                    <circle cx="110" cy="62" r="4.5" fill="#fff" /><circle cx="109" cy="62" r="2.5" fill="#030712" />
+                    <polygon points="100,68 93,78 107,78" fill="#F59E0B" />
+                    <path d="M52,110 Q40,145 54,165" stroke="#070F1E" strokeWidth="14" strokeLinecap="round" fill="none" />
+                    <g style={{animation:'pulse 1.5s ease-in-out infinite'}}>
+                      <path d="M148,110 Q180,120 190,145" stroke="#070F1E" strokeWidth="15" strokeLinecap="round" fill="none" />
+                      <circle cx="192" cy="148" r="14" fill="#00F5FF" opacity="0.6" style={{animation:'ping 1s ease-in-out infinite'}} />
+                      <circle cx="192" cy="148" r="12" fill="#00F5FF" />
+                      <path d="M192,143 C190,140 186,140 186,144 C186,148 192,152 192,152 C192,152 198,148 198,144 C198,140 194,140 192,143 Z" fill="#030712" />
+                    </g>
+                  </svg>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-[#38BDF8] flex items-center gap-1.5">🛰️ Connecting to Bharati Station Sat-Net (64 kbps)...</span>
+                    <span className="text-[#00F5FF] font-bold">{syncProgress}%</span>
+                  </div>
+                  <div className="w-full h-3 rounded-full bg-[#030712] border border-[#38BDF8]/30 overflow-hidden p-0.5">
+                    <div className="h-full rounded-full bg-gradient-to-r from-[#00F5FF] to-[#38BDF8] transition-all duration-300" style={{width:`${syncProgress}%`}} />
+                  </div>
+                </div>
+                <p className="text-[11px] font-mono text-slate-400">POLARIS by Phantom Coderx · Team 134551 · SIH26063</p>
+              </div>
+            </div>
+          )}
+
+          {/* ==================== DASHBOARD ==================== */}
+          {screen === 'dashboard' && (
+            <div className="relative z-20 min-h-screen flex flex-col">
+
+              {/* Top Nav */}
+              <header className="sticky top-0 z-40 bg-[#0B1528]/85 backdrop-blur-xl border-b border-[#38BDF8]/25 shadow-2xl">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="flex items-center justify-between h-20">
+                    <div className="flex items-center gap-4">
+                      <button onClick={() => setScreen('entrance')}
+                        className="px-3 py-2 rounded-xl bg-[#030712] hover:bg-[#070F1E] border border-[#00F5FF]/40 text-[#00F5FF] text-xs font-mono font-bold flex items-center gap-1.5 transition-all">
+                        ← Return
+                      </button>
+                      <div className="hidden sm:block border-l border-slate-700 h-8" />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-base font-black text-white tracking-wider">POLARIS PORTAL</h2>
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/30">SIH26063</span>
+                        </div>
+                        <p className="text-[10px] font-mono text-[#38BDF8]">MoES · NCPOR · Phantom Coderx (ID: 134551)</p>
+                      </div>
+                    </div>
+
+                    {/* Desktop Tabs */}
+                    <nav className="hidden xl:flex items-center gap-1 font-mono text-xs">
+                      {TABS.map(tab => (
+                        <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                          className={`px-3 py-2 rounded-xl transition-all ${ activeTab===tab.id ? (tab.id==='3d-tour'?'bg-gradient-to-r from-[#00F5FF] to-[#38BDF8] text-[#030712] font-black shadow-lg shadow-[#00F5FF]/20':'bg-[#00F5FF] text-[#030712] font-black shadow-lg shadow-[#00F5FF]/20') : 'text-slate-300 hover:text-white hover:bg-[#070F1E]' }`}>
+                          {tab.id==='3d-tour'?'🐧 '+tab.label:tab.label}
+                        </button>
+                      ))}
+                    </nav>
+
+                    <div className="flex items-center gap-2.5">
+                      <button onClick={() => setSnowfall(!snowfall)}
+                        className={`p-2 rounded-xl border text-xs font-mono transition-all ${ snowfall ? 'bg-[#00F5FF]/15 text-[#00F5FF] border-[#00F5FF]/40' : 'bg-[#030712] text-slate-500 border-slate-800' }`}>
+                        ❄️
+                      </button>
+                      <div className="flex items-center gap-2 bg-[#030712] p-1.5 px-3 rounded-xl border border-[#38BDF8]/30">
+                        <span className="text-[10px] font-mono text-slate-500 hidden md:inline">64kbps:</span>
+                        <button role="switch" aria-checked={satMode} onClick={() => setSatMode(!satMode)}
+                          className={`w-10 h-5 rounded-full transition-colors p-0.5 border ${ satMode ? 'bg-[#00F5FF] border-[#00F5FF]' : 'bg-slate-800 border-slate-700' }`}>
+                          <div className={`w-3.5 h-3.5 rounded-full bg-[#030712] shadow-md transform transition-transform ${ satMode ? 'translate-x-5' : 'translate-x-0' }`} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Mobile Tabs */}
+                <div className="xl:hidden flex items-center gap-2 p-2 bg-[#070F1E] border-t border-[#38BDF8]/20 overflow-x-auto text-xs font-mono">
+                  {TABS.map(tab => (
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                      className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${ activeTab===tab.id ? (tab.id==='3d-tour'?'bg-gradient-to-r from-[#00F5FF] to-[#38BDF8] text-[#030712] font-bold':'bg-[#00F5FF] text-[#030712] font-bold') : 'text-slate-300 bg-[#0B1528]' }`}>
+                      {tab.id==='3d-tour'?'🐧 3D Tour':tab.label.split('. ')[1]}
+                    </button>
+                  ))}
+                </div>
+              </header>
+
+              {/* Tab Content */}
+              <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-10 flex-1">
+                {activeTab==='telemetry' && <DashboardTelemetryView stations={STATIONS_DATA} onSelectStation={setStationModal} />}
+                {activeTab==='vault' && <DashboardVaultView papers={RESEARCH_PAPERS} showToast={showToast} />}
+                {activeTab==='scientists' && <DashboardScientistsView showToast={showToast} />}
+                {activeTab==='ai-studio' && <DashboardAiStudioView presets={PRELOADED_MANUSCRIPTS} showToast={showToast} />}
+                {activeTab==='gallery' && <DashboardGalleryView items={GALLERY_ITEMS} showToast={showToast} />}
+                {activeTab==='3d-tour' && <ThreeJSTour />}
+              </main>
+
+              {/* Dashboard Footer */}
+              <footer className="border-t border-[#38BDF8]/20 bg-[#070F1E] py-6 px-4 text-xs font-mono text-slate-500">
+                <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+                  <span>POLARIS · MoES / NCPOR · Phantom Coderx (Team ID: 134551) · SIH Project #26063</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[#00F5FF]">● BHARATI: 100% HEALTH</span>
+                    <span className="text-[#10B981]">● MAITRI: ACTIVE DRILL</span>
+                    <span className="text-[#38BDF8]">● HIMADRI: FJORD MOORED</span>
+                  </div>
+                </div>
+              </footer>
+            </div>
+          )}
+
+          {/* Station Modal */}
+          {stationModal && <StationModal station={stationModal} onClose={() => setStationModal(null)} showToast={showToast} />}
+
+          {/* Toast */}
+          {toast.visible && (
+            <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-[#0B1528] border-2 border-[#00F5FF] text-white text-xs font-mono shadow-2xl backdrop-blur-xl">
+              ℹ️ <span>{toast.message}</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
